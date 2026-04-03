@@ -414,3 +414,22 @@ def beit_large_patch16_512(pretrained=False, **kwargs):
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     model.default_cfg = _cfg()
     return model
+
+@register_model
+def beit_glyph_patch8_96(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        img_size=96,
+        patch_size=8,
+        embed_dim=512,     # giảm cho phù hợp data nhỏ
+        depth=8,           # nhẹ hơn
+        num_heads=8,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        use_rel_pos_bias=True,   # rất nên bật
+        **kwargs
+    )
+    model.default_cfg = _cfg(
+        input_size=(3, 96, 96)
+    )
+    return model
