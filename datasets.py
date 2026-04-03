@@ -102,7 +102,7 @@ class DataAugmentationForConMIM(object):
         # (optional nhưng rất nên cho glyph)
         image = image.convert("L")
 
-        for_patches, _ = self.common_transform(image)
+        for_patches = self.common_transform(image)
 
         img1 = self.patch_transform(for_patches)
         img2 = self.patch_transform_hard(for_patches)
