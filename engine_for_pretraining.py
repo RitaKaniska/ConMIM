@@ -51,8 +51,8 @@ def train_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimizer: to
         bool_masked_pos_zero = torch.zeros(bool_masked_pos.shape).to(device, non_blocking=True).to(torch.bool)
 
 
-        length = 196
-        labels_idx = torch.arange(length)
+        length = feat.shape[1]
+        labels_idx = torch.arange(length, device=device)
         labels_idx_batch = labels_idx.unsqueeze(0).expand(bs, -1)
         labels_idx_batch = labels_idx_batch.to(device, non_blocking=True)
         labels_idx_batch = labels_idx_batch[bool_masked_pos]

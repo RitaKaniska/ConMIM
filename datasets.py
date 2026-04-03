@@ -60,11 +60,8 @@ class DataAugmentationForConMIM(object):
         std = IMAGENET_INCEPTION_STD if not imagenet_default_mean_and_std else IMAGENET_DEFAULT_STD
 
         self.common_transform = transforms.Compose([
-            transforms.RandomHorizontalFlip(p=0.5),
-            RandomResizedCropAndInterpolationWithTwoPic(
-                size=args.input_size, second_size=args.second_input_size,
-                interpolation=args.train_interpolation, second_interpolation=args.second_interpolation,
-            ),
+            transforms.Resize((args.input_size, args.input_size)),
+            transforms.RandomRotation(5),
         ])
 
         self.patch_transform = transforms.Compose([
@@ -75,17 +72,20 @@ class DataAugmentationForConMIM(object):
         ])
 
         self.patch_transform_hard = transforms.Compose([
-            transforms.RandomApply(
-                [transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.2, hue=0.1)],
-                p=0.8
+            transforms.RandomAffine(
+                degrees=5,            # xoay nhẹ
+                translate=(0.02, 0.02),
+                scale=(0.9, 1.1),
+                shear=3
             ),
-            transforms.RandomGrayscale(p=0.2),
-            GaussianBlur(0.1),
-            Solarization(0.2),
+            transforms.RandomPerspective(distortion_scale=0.2, p=0.3),
+
+            # noise nhẹ thay vì blur
+            transforms.Lambda(lambda x: x + 0.02 * torch.randn_like(x)),
+
             transforms.ToTensor(),
-            transforms.Normalize(
-                mean=torch.tensor(mean),
-                std=torch.tensor(std))
+            transforms.Normalize(mean=torch.tensor(mean),
+                                std=torch.tensor(std))
         ])
 
         if args.mask_type == "block":
