@@ -59,11 +59,13 @@ class DataAugmentationForConMIM(object):
         mean = IMAGENET_INCEPTION_MEAN if not imagenet_default_mean_and_std else IMAGENET_DEFAULT_MEAN
         std = IMAGENET_INCEPTION_STD if not imagenet_default_mean_and_std else IMAGENET_DEFAULT_STD
 
+        # 1. Transform chung: Giữ nguyên ảnh PIL
         self.common_transform = transforms.Compose([
             transforms.Resize((args.input_size, args.input_size)),
             transforms.RandomRotation(5),
         ])
 
+        # 2. Transform nhẹ
         self.patch_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(
@@ -71,21 +73,13 @@ class DataAugmentationForConMIM(object):
                 std=torch.tensor(std))
         ])
 
+        # 3. Transform nặng (SỬA LỖI TẠI ĐÂY)
         self.patch_transform_hard = transforms.Compose([
-            transforms.RandomAffine(
-                degrees=5,            # xoay nhẹ
-                translate=(0.02, 0.02),
-                scale=(0.9, 1.1),
-                shear=3
-            ),
+            transforms.RandomAffine(degrees=5, translate=(0.02, 0.02), scale=(0.9, 1.1), shear=3),
             transforms.RandomPerspective(distortion_scale=0.2, p=0.3),
-
-            # noise nhẹ thay vì blur
-            transforms.Lambda(lambda x: x + 0.02 * torch.randn_like(x)),
-
-            transforms.ToTensor(),
-            transforms.Normalize(mean=torch.tensor(mean),
-                                std=torch.tensor(std))
+            transforms.ToTensor(), # PHẢI đưa ToTensor lên trước khi thêm Noise
+            transforms.Lambda(lambda x: x + 0.02 * torch.randn_like(x)), # Bây giờ x đã là Tensor
+            transforms.Normalize(mean=torch.tensor(mean), std=torch.tensor(std))
         ])
 
         if args.mask_type == "block":
@@ -96,26 +90,24 @@ class DataAugmentationForConMIM(object):
             )
         elif args.mask_type == 'random_mps32':
             self.masked_position_generator = MaskGenerator(mask_ratio=args.mask_ratio)
-        self.mask_type = args.mask_type
-
+        
     def __call__(self, image):
-        # (optional nhưng rất nên cho glyph)
+        # Đảm bảo đầu vào là ảnh đơn sắc nếu bạn làm việc với ký tự/glyph
         image = image.convert("L")
 
+        # Thực hiện transform chung (trả về 1 ảnh PIL)
         for_patches = self.common_transform(image)
 
+        # Tạo ra 2 phiên bản từ cùng 1 ảnh đã qua common_transform
         img1 = self.patch_transform(for_patches)
         img2 = self.patch_transform_hard(for_patches)
 
+        # Tạo mask
         mask = self.masked_position_generator()
-
-        # 🔥 QUAN TRỌNG NHẤT
         if not isinstance(mask, torch.Tensor):
             mask = torch.from_numpy(mask)
 
-        mask = mask.long()   # đảm bảo dtype đúng
-
-        return img1, img2, mask
+        return img1, img2, mask.long()
 
     def __repr__(self):
         repr = "(DataAugmentationForConMIM,\n"
