@@ -99,9 +99,23 @@ class DataAugmentationForConMIM(object):
         self.mask_type = args.mask_type
 
     def __call__(self, image):
-        for_patches, for_visual_tokens = self.common_transform(image)
-        return \
-            self.patch_transform(for_patches), self.patch_transform_hard(for_patches), self.masked_position_generator()
+        # (optional nhưng rất nên cho glyph)
+        image = image.convert("L")
+
+        for_patches, _ = self.common_transform(image)
+
+        img1 = self.patch_transform(for_patches)
+        img2 = self.patch_transform_hard(for_patches)
+
+        mask = self.masked_position_generator()
+
+        # 🔥 QUAN TRỌNG NHẤT
+        if not isinstance(mask, torch.Tensor):
+            mask = torch.from_numpy(mask)
+
+        mask = mask.long()   # đảm bảo dtype đúng
+
+        return img1, img2, mask
 
     def __repr__(self):
         repr = "(DataAugmentationForConMIM,\n"
@@ -150,7 +164,7 @@ def build_dataset(is_train, args):
         nb_classes = 1000
     elif args.data_set == "image_folder":
         root = args.data_path if is_train else args.eval_data_path
-        dataset = ImageFolder(root, transform=transform)
+        dataset = ImageFolder(root=args.data_path, transform=transform)
         nb_classes = args.nb_classes
         assert len(dataset.class_to_idx) == nb_classes
     else:
